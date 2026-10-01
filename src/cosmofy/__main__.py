@@ -57,11 +57,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.clone and not args.cosmo:
         log.error("--clone is only for pythoncosmofy.com, which sets --cosmo.")
         return 1
-    if not args.clone and not args.python:
-        log.error("Pass --python PATH to a python-ape python.com.")
-        print(short_usage)
-        return 1
-    if args.python and not args.python.is_file():
+    if args.python and not args.python_url and not args.python.is_file():
         log.error(f"missing Python APE: {args.python}")
         return 1
 

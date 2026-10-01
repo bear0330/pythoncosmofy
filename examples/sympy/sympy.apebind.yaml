@@ -1,0 +1,214 @@
+schema_version: 1
+ape:
+  name: sympy-ape
+  binary: sympy.com
+commands:
+  - path: []
+    summary: Evaluate, rewrite, and solve SymPy expressions.
+    positionals: []
+    options: []
+  - path: [version]
+    summary: Print the SymPy version.
+    positionals: []
+    options: []
+  - path: [eval]
+    summary: Evaluate an expression.
+    positionals: &expr_positional
+      - name: EXPR
+        api_name: expr
+        value_type: string
+        required: true
+        multiple: false
+        help: SymPy expression, for example sin(x).
+    options: &expr_options
+      - flags: [--var]
+        api_name: symbols
+        value_type: string
+        required: false
+        multiple: false
+        choices: []
+        help: "Comma-separated symbols. The first one is the active symbol. Default: x."
+  - path: [simplify]
+    summary: Simplify an expression.
+    positionals: *expr_positional
+    options: *expr_options
+  - path: [expand]
+    summary: Expand an expression.
+    positionals: *expr_positional
+    options: *expr_options
+  - path: [factor]
+    summary: Factor an expression.
+    positionals: *expr_positional
+    options: *expr_options
+  - path: [apart]
+    summary: Compute a partial-fraction decomposition.
+    positionals: *expr_positional
+    options: *expr_options
+  - path: [diff]
+    summary: Differentiate an expression.
+    positionals: *expr_positional
+    options:
+      - flags: [--var]
+        api_name: symbols
+        value_type: string
+        required: false
+        multiple: false
+        choices: []
+        help: "Comma-separated symbols. The first one is the active symbol. Default: x."
+      - flags: [--order]
+        api_name: order
+        value_type: integer
+        required: false
+        multiple: false
+        choices: []
+        help: "Derivative order. Default: 1."
+  - path: [integrate]
+    summary: Integrate an expression.
+    positionals: *expr_positional
+    options: *expr_options
+  - path: [solve]
+    summary: Solve an expression set equal to zero.
+    positionals: *expr_positional
+    options: *expr_options
+  - path: [limit]
+    summary: Take a limit.
+    positionals: *expr_positional
+    options:
+      - flags: [--var]
+        api_name: symbols
+        value_type: string
+        required: false
+        multiple: false
+        choices: []
+        help: "Comma-separated symbols. The first one is the active symbol. Default: x."
+      - flags: [--point]
+        api_name: point
+        value_type: string
+        required: false
+        multiple: false
+        choices: []
+        help: "Point the variable approaches. Default: 0."
+  - path: [series]
+    summary: Expand a series.
+    positionals: *expr_positional
+    options:
+      - flags: [--var]
+        api_name: symbols
+        value_type: string
+        required: false
+        multiple: false
+        choices: []
+        help: "Comma-separated symbols. The first one is the active symbol. Default: x."
+      - flags: [--point]
+        api_name: point
+        value_type: string
+        required: false
+        multiple: false
+        choices: []
+        help: "Expansion point. Default: 0."
+      - flags: [--order]
+        api_name: order
+        value_type: integer
+        required: false
+        multiple: false
+        choices: []
+        help: "Series order. Default: 6."
+  - path: [subs]
+    summary: Substitute a value for the active symbol.
+    positionals: *expr_positional
+    options:
+      - flags: [--var]
+        api_name: symbols
+        value_type: string
+        required: false
+        multiple: false
+        choices: []
+        help: "Comma-separated symbols. The first one is the active symbol. Default: x."
+      - flags: [--value]
+        api_name: value
+        value_type: string
+        required: true
+        multiple: false
+        choices: []
+        help: Value that replaces the active symbol, for example 2 or pi/2.
+  - path: [numeric]
+    summary: Evaluate an expression numerically.
+    positionals: *expr_positional
+    options:
+      - flags: [--var]
+        api_name: symbols
+        value_type: string
+        required: false
+        multiple: false
+        choices: []
+        help: "Comma-separated symbols. The first one is the active symbol. Default: x."
+      - flags: [--digits]
+        api_name: digits
+        value_type: integer
+        required: false
+        multiple: false
+        choices: []
+        help: "Decimal digits. Default: 15."
+operations:
+  - name: version
+    command: [version]
+    execution: oneshot
+    result:
+      format: json
+      field: result
+      strip: true
+  - name: evaluate
+    command: [eval]
+    execution: oneshot
+    result: &json_result
+      format: json
+      strip: true
+  - name: simplify
+    command: [simplify]
+    execution: oneshot
+    result: *json_result
+  - name: expand
+    command: [expand]
+    execution: oneshot
+    result: *json_result
+  - name: factor
+    command: [factor]
+    execution: oneshot
+    result: *json_result
+  - name: apart
+    command: [apart]
+    execution: oneshot
+    result: *json_result
+  - name: diff
+    command: [diff]
+    execution: oneshot
+    result: *json_result
+  - name: integrate
+    command: [integrate]
+    execution: oneshot
+    result: *json_result
+  - name: solve
+    command: [solve]
+    execution: oneshot
+    result: *json_result
+  - name: limit
+    command: [limit]
+    execution: oneshot
+    result: *json_result
+  - name: series
+    command: [series]
+    execution: oneshot
+    result: *json_result
+  - name: subs
+    command: [subs]
+    execution: oneshot
+    result: *json_result
+  - name: numeric
+    command: [numeric]
+    execution: oneshot
+    result: *json_result
+runtime:
+  env_unset:
+    - PYTHONHOME
+    - PYTHONPATH
+    - PYTHONSTARTUP

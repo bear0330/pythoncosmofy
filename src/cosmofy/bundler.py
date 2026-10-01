@@ -21,8 +21,10 @@ import zipfile
 
 # pkg
 from .args import Args
+from .downloader import download_if_newer
 from .pythonoid import compile_python
 from .pythonoid import MAIN_FILES
+from .pythonoid import MODULE_SUFFIXES
 from .pythonoid import PACKAGE_FILES
 from .pythonoid import Pkg
 from .pythonoid import RE_MAIN
@@ -120,19 +122,34 @@ class Bundler:
             archive = _archive(io.BytesIO())
         return temp, archive
 
+    def _download_python(self) -> Path:
+        """Cache the requested python.com and use it to compile modules."""
+        url = self.args.resolved_python_url()
+        dest = self.args.cache_dir() / "python.com"
+        log.info(f"{self.banner}python-url: {url}")
+        if self.args.for_real:
+            download_if_newer(url, dest)
+            dest.chmod(dest.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        self.args.python = dest
+        return dest
+
     def setup_archive(self) -> ZipFile2:
-        """Clone this binary, or copy a local python.com."""
+        """Download python.com, copy a local one, or clone this binary."""
         temp, archive = self.setup_temp()
-        if self.args.clone:
-            paths = [".args", f"{PATH_COSMOFY}/*"]
-            self.fs_copy(Path(sys.executable), temp)
-            archive = self.zip_remove(archive or _archive(temp), *paths)
+        if self.args.python_url:
+            self.fs_copy(self._download_python(), temp)
+            archive = archive or _archive(temp)
         elif self.args.python:
             log.debug(f"{self.banner}copy runtime: {self.args.python}")
             self.fs_copy(self.args.python, temp)
             archive = archive or _archive(temp)
+        elif self.args.clone:
+            paths = [".args", f"{PATH_COSMOFY}/*"]
+            self.fs_copy(Path(sys.executable), temp)
+            archive = self.zip_remove(archive or _archive(temp), *paths)
         else:
-            raise ValueError("pass --python PATH, or use --clone")
+            self.fs_copy(self._download_python(), temp)
+            archive = archive or _archive(temp)
         return archive
 
     def process_file(
@@ -153,6 +170,45 @@ class Bundler:
             data = compile_python(path, data, self.args.python)
         return name, data, main
 
+    def _add_roots(self) -> list[Path]:
+        """Directories passed on the command line."""
+        start = Path.cwd()
+        roots: list[Path] = []
+        for pattern in self.args.add:
+            if pattern == ".":
+                roots.append(start.resolve())
+            elif pattern == "..":
+                roots.append(start.parent.resolve())
+            else:
+                for path in sorted(start.glob(pattern)):
+                    roots.append((path if path.is_dir() else path.parent).resolve())
+        return roots
+
+    def _runtime_dest(self, path: Path, roots: list[Path]) -> Optional[str]:
+        """Zip path for a ``Lib/`` or ``lib/`` tree, or None for a normal module.
+
+        ``Lib/`` is stored as ``Lib/``. A Linux prefix ``lib/.../site-packages``
+        is stored under ``Lib/site-packages``, which is the path this runtime
+        imports. Other ``lib/`` files stay at ``lib/``.
+        """
+        resolved = path.resolve()
+        for root in roots:
+            try:
+                rel = resolved.relative_to(root)
+            except ValueError:
+                continue
+            if not rel.parts or rel.parts[0] not in ("Lib", "lib"):
+                continue
+            name = rel.name
+            if path.is_file() and path.suffix == ".py":
+                name = path.with_suffix(".pyc").name
+            if path.is_file() and "site-packages" in rel.parts[:-1]:
+                idx = rel.parts.index("site-packages")
+                tail = rel.parts[idx + 1 : -1] + (name,)
+                return "/".join(("Lib", "site-packages") + tail)
+            return "/".join(rel.parts[:-1] + (name,))
+        return None
+
     def zip_add(
         self,
         archive: ZipFile2,
@@ -163,11 +219,23 @@ class Bundler:
         modules: Dict[Path, Pkg] = {}
         main: Pkg = tuple()
         pkgs = ("Lib", "site-packages")
+        roots = self._add_roots()
         for path, files in include:
             if "__pycache__" in path.parts:
                 continue
             if path in exclude:
                 log.debug(f"{self.banner}exclude: {path}")
+                continue
+            runtime_dest = self._runtime_dest(path, roots)
+            if runtime_dest is not None:
+                if path.is_dir():
+                    continue
+                data: Union[bytes, bytearray] = path.read_bytes()
+                if path.suffix == ".py":
+                    data = compile_python(path, data, self.args.python)
+                log.info(f"{self.banner}add: {runtime_dest}")
+                if self.args.for_real:
+                    archive.add_file(runtime_dest, data, 0o644)
                 continue
             if path.is_dir():
                 if any(True for p in PACKAGE_FILES if p in files):
@@ -178,6 +246,9 @@ class Bundler:
             parent = modules.get(path.parent, tuple())
             if not parent and path.name in PACKAGE_FILES:
                 parent = (path.parent.name,)
+            # README and prepare scripts sit beside Lib/; they are not modules.
+            if not parent and path.suffix not in MODULE_SUFFIXES:
+                continue
             modules[path] = module = parent + (path.stem,)
 
             name, data, main = self.process_file(path, module, main)

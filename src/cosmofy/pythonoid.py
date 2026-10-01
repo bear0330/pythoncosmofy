@@ -95,8 +95,7 @@ def _interpreter_magic(python: Path) -> bytes:
     if proc.returncode != 0 or len(magic) != 4:
         err = proc.stderr.decode("utf-8", "replace").strip()
         raise RuntimeError(
-            f"could not read bytecode magic from {python} (exit {proc.returncode}). {err}\n"
-            "Cosmopolitan APEs need `ulimit -s unlimited`."
+            f"could not read bytecode magic from {python} (exit {proc.returncode}). {err}"
         )
     _magic_cache[key] = magic
     return magic

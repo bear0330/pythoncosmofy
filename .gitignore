@@ -2,3 +2,7 @@ __pycache__/
 .pytest_cache/
 dist/
 .build/
+examples/sympy/Lib/
+examples/sympy/lib/
+examples/sympy/bindings/
+examples/sympy/*.com

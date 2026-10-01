@@ -6,15 +6,21 @@ from pathlib import Path
 from typing import List
 from typing import Optional
 import dataclasses
+import os
 
-USAGE = """\
+DEFAULT_PYTHON_URL = (
+    "https://github.com/bear0330/python-ape/releases/latest/download/python.com"
+)
+"""Latest python.com published by python-ape."""
+
+USAGE = f"""\
 cosmofy: bundle a Python program into a Cosmopolitan APE
 
 USAGE
 
   cosmofy
     [--help] [--version] [--debug] [--dry-run]
-    [--python PATH] [--clone]
+    [--python PATH] [--python-url URL] [--clone]
     [--output PATH] [--args STRING]
     <add>... [--exclude GLOB]... [--remove GLOB]...
 
@@ -28,8 +34,12 @@ GENERAL
 RUNTIME
 
   --python PATH
-    Copy this python.com instead of cloning the running binary.
-    Bootstrap passes the python-ape release here.
+    Copy this python.com instead of downloading or cloning.
+
+  --python-url URL
+    Download this python.com and copy it.
+    On pythoncosmofy.com this overrides --clone.
+    [default: {DEFAULT_PYTHON_URL}]
 
   --clone
     Copy the running pythoncosmofy.com and remove this package.
@@ -90,8 +100,24 @@ class Args:
     python: Optional[Path] = None
     """Local python.com to copy."""
 
+    python_url: Optional[str] = None
+    """Explicit python.com download URL. Unset means the caller did not pass --python-url."""
+
     clone: bool = False
     """Whether to clone the running binary."""
+
+    def resolved_python_url(self) -> str:
+        """URL used when a python.com is downloaded."""
+        return (
+            self.python_url
+            or os.environ.get("PYTHONCOSMOFY_PYTHON_URL")
+            or DEFAULT_PYTHON_URL
+        )
+
+    def cache_dir(self) -> Path:
+        """Directory for a downloaded python.com."""
+        env = os.environ.get("PYTHONCOSMOFY_CACHE")
+        return Path(env) if env else Path.home() / ".cache" / "pythoncosmofy"
 
     output: Optional[Path] = None
     """Path to the output file."""
@@ -136,7 +162,7 @@ class Args:
             ]:
                 setattr(args, prop, True)
 
-            elif arg in ["--args"]:
+            elif arg in ["--args", "--python-url"]:
                 if not argv:
                     raise ValueError(f"Expected argument for option: {arg}")
                 setattr(args, prop, argv.pop(0))
