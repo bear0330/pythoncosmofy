@@ -150,7 +150,7 @@ class Bundler:
                 main = module
                 log.debug(f"found main: {main}")
             name = path.with_suffix(".pyc").name  # change name
-            data = compile_python(path, data)
+            data = compile_python(path, data, self.args.python)
         return name, data, main
 
     def zip_add(

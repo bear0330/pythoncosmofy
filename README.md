@@ -12,7 +12,9 @@ After bootstrap, `dist/pythoncosmofy.com` bundles apps by itself.
 
 Download `python.com` from the
 [python-ape releases](https://github.com/bear0330/python-ape/releases).
-A host `python3` is only used to copy that runtime and embed this package:
+A host `python3` copies that runtime and embeds this package. The modules are
+compiled by the `python.com` you pass in, so the host Python version does not
+have to match the APE:
 
 ```sh
 ./scripts/bootstrap.sh /path/to/python.com

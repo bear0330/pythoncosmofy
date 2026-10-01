@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+# Cosmopolitan APEs need a large stack, including the python.com used to compile.
+ulimit -s unlimited 2>/dev/null || true
+
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 PYTHON_APE=${1:-}
 OUT=${2:-"$ROOT/dist/pythoncosmofy.com"}
