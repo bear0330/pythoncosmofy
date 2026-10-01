@@ -60,57 +60,9 @@ string. A failing expression exits 1 and writes the error to stderr.
 `diff`, `integrate`, `solve`, `limit`, `series`, and `subs` act on. `x`, `y`,
 `z`, `t`, `n`, and `k` are always defined. An expression may start with `-`.
 
-## APEBind
-
-[APEBind](https://github.com/nuwainfo/apebind) treats this CLI as the ABI.
-`commands:` in `--help` is the section it discovers, and metavars such as
-`NUMBER` are how it sees an integer flag. Inspect the built APE, then generate
-from the reviewed schema in `sympy.apebind.yaml`:
-
-```sh
-apebind inspect ./sympy.com -o sympy.discovered.apebind.yaml
-apebind validate sympy.apebind.yaml
-apebind generate sympy.apebind.yaml --ape ./sympy.com --lang node -o bindings/node
-apebind generate sympy.apebind.yaml --ape ./sympy.com --lang java -o bindings/java
-```
-
-`apebind` here is [apebind.com v0.4.1](https://github.com/nuwainfo/apebind/releases/tag/v0.4.1)
-or a checkout of that release. The reviewed schema keeps the inspected grammar
-and changes the library surface:
-
-- Operations read JSON. `version` returns the `result` string. The others
-  return the whole `{result, latex}` object.
-- `--text` stays on the CLI and is left out of the schema, so a generated
-  call cannot turn that JSON off.
-- The `eval` subcommand is exposed as `evaluate`. A JavaScript module cannot
-  export a function named `eval`.
-- `--var` is exposed as `symbols`. `var` is a reserved parameter name in Java.
-- `subs` requires `--value`.
-- The package name is `sympy-ape`.
-- Generated processes unset `PYTHONHOME`, `PYTHONPATH`, and `PYTHONSTARTUP`.
-
-Node.js:
-
-```js
-import { integrate, diff } from 'sympy-ape';
-
-console.log(await integrate({ expr: 'sin(x)' }));
-console.log(await diff({ expr: '-x**2' }));
-```
-
-Java:
-
-```java
-import apebind.generated.sympy_ape.SympyAPEBinding;
-
-var value = SympyAPEBinding.integrate(
-    SympyAPEBinding.IntegrateParameters.builder()
-        .expr("sin(x)")
-        .build());
-```
-
-`bindings/` holds those generated projects, including a copy of `sympy.com`.
-That directory is gitignored.
+The portable CLI and its Node.js and Java bindings live in the sibling
+[sympy-ape](https://github.com/bear0330/sympy-ape) project. This folder only prepares and bundles
+`sympy.com`.
 
 ## ctypes
 

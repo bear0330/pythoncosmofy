@@ -54,7 +54,9 @@ A project folder may also contain `Lib/` or `lib/`. `Lib/` is stored at
 `Lib/` inside the APE. Packages under a Linux prefix
 `lib/.../site-packages` are stored at `Lib/site-packages`, which is where
 this runtime imports them. Other `lib/` files stay at `lib/`.
-[`examples/sympy`](examples/sympy/README.md) prepares SymPy that way.
+[`examples/sympy`](examples/sympy/README.md) prepares SymPy that way. The
+resulting `sympy.com` and its Node.js and Java bindings live in the sibling
+[sympy-ape](https://github.com/bear0330/sympy-ape) project.
 
 ## License
 
