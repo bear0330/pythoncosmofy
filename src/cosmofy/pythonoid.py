@@ -47,16 +47,25 @@ def _pack_uint32(x: Union[int, float]) -> bytes:
 # Run by the target interpreter. It reads a source file and writes a pyc
 # whose magic matches that interpreter, not the process driving the bundler.
 _REMOTE_COMPILE = """\
-import importlib.util, marshal, pathlib, sys
+import importlib.util
+import marshal
+import pathlib
+import sys
+
 path = pathlib.Path(sys.argv[1])
 out = pathlib.Path(sys.argv[2])
 source = path.read_bytes()
 st = path.stat()
 code = compile(source, str(path), "exec", dont_inherit=True, optimize=-1)
+
 def pack(x):
     return (int(x) & 0xFFFFFFFF).to_bytes(4, "little")
+
 data = bytearray(importlib.util.MAGIC_NUMBER)
-data += pack(0) + pack(st.st_mtime) + pack(st.st_size) + marshal.dumps(code)
+data += pack(0)
+data += pack(st.st_mtime)
+data += pack(st.st_size)
+data += marshal.dumps(code)
 out.write_bytes(data)
 """
 
@@ -67,13 +76,16 @@ _needs_shell = False
 def _run_python(python: Path, args: list[str]) -> subprocess.CompletedProcess[bytes]:
     """Run a python.com. Fall back to its shell stub when the kernel has no APE loader."""
     global _needs_shell
+
     if _needs_shell:
         return subprocess.run(["/bin/sh", str(python), *args], capture_output=True)
+
     try:
         return subprocess.run([str(python), *args], capture_output=True)
     except OSError as exc:
         if exc.errno != errno.ENOEXEC:
             raise
+
         _needs_shell = True
         return subprocess.run(["/bin/sh", str(python), *args], capture_output=True)
 
@@ -82,21 +94,27 @@ def _interpreter_magic(python: Path) -> bytes:
     """Return the 4-byte pyc magic of `python`."""
     key = str(python)
     cached = _magic_cache.get(key)
+
     if cached is not None:
         return cached
+
     proc = _run_python(
         python,
         [
             "-c",
-            "import importlib.util,sys; sys.stdout.buffer.write(importlib.util.MAGIC_NUMBER)",
+            "import importlib.util\n"
+            "import sys\n"
+            "sys.stdout.buffer.write(importlib.util.MAGIC_NUMBER)\n",
         ],
     )
     magic = proc.stdout
+
     if proc.returncode != 0 or len(magic) != 4:
         err = proc.stderr.decode("utf-8", "replace").strip()
         raise RuntimeError(
             f"could not read bytecode magic from {python} (exit {proc.returncode}). {err}"
         )
+
     _magic_cache[key] = magic
     return magic
 
@@ -105,6 +123,7 @@ def _compile_here(path: Path, source: bytes) -> bytearray:
     """Compile with the current interpreter."""
     stats = path.stat()
     code = compile(source, path, "exec", dont_inherit=True, optimize=-1)
+
     data = bytearray(MAGIC_NUMBER)
     data.extend(_pack_uint32(0))
     data.extend(_pack_uint32(stats.st_mtime))
@@ -118,6 +137,7 @@ def _compile_with(python: Path, path: Path) -> bytearray:
     handle = tempfile.NamedTemporaryFile(prefix="cosmofy-", suffix=".pyc", delete=False)
     handle.close()
     dest = Path(handle.name)
+
     try:
         proc = _run_python(python, ["-c", _REMOTE_COMPILE, str(path), str(dest)])
         if proc.returncode != 0 or dest.stat().st_size < 16:
@@ -135,6 +155,7 @@ def compile_python(
 ) -> bytearray:
     """Return bytecode for `python`, or for this interpreter when it already matches."""
     source = path.read_bytes() if source is None else source
+
     if python is not None and _interpreter_magic(python) != MAGIC_NUMBER:
         return _compile_with(python, path)
     return _compile_here(path, source)

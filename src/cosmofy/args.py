@@ -21,6 +21,8 @@ USAGE
   cosmofy
     [--help] [--version] [--debug] [--dry-run]
     [--python PATH] [--python-url URL] [--clone]
+    [--sdk PATH] [--superconfigure PATH]
+    [--c-extension DIR]... [--separate-debug]
     [--output PATH] [--args STRING]
     <add>... [--exclude GLOB]... [--remove GLOB]...
 
@@ -44,6 +46,33 @@ RUNTIME
   --clone
     Copy the running pythoncosmofy.com and remove this package.
     pythoncosmofy.com sets this itself.
+
+  --sdk PATH
+    Python APE link SDK produced by python-ape's package-sdk.sh.
+    Without --c-extension, sdk/python.com is the runtime.
+
+  --superconfigure PATH
+    Superconfigure checkout that contains cosmopolitan/. Used when a C
+    extension is relinked. cosmocc, apelink, and ape.elf are read from
+    that tree. When this is omitted, superconfigure/ beside the SDK is
+    used. install-overlay.sh creates that directory.
+
+  --c-extension DIR
+    Static extension directory. Requires --sdk. The nearest
+    scripts/build-extension.sh above DIR is run with the extension, the
+    SDK, and the superconfigure checkout. A BUILD.mk extension is
+    downloaded, checked, extracted, and patched by superconfigure's
+    DOWNLOAD_SOURCE. Otherwise the sources in extension.json are
+    compiled, or a local build.sh is run when the shared script is
+    absent. A "python" path in extension.json is packed into
+    Lib/site-packages. The runtime is relinked before the app is packed.
+    Repeat for more than one extension.
+
+  --separate-debug
+    Requires --c-extension. The fat binary omits its embedded symbol
+    table. The unstripped ELFs are saved beside an output `app.com`
+    as `app.com.dbg` (x86_64) and `app.aarch64.elf`. Point cosmoaddr2line
+    at the file for the architecture that crashed.
 
 OUTPUT
 
@@ -106,6 +135,21 @@ class Args:
     clone: bool = False
     """Whether to clone the running binary."""
 
+    sdk: Optional[Path] = None
+    """python-ape link SDK. Supplies python.com, or archives when relinking."""
+
+    superconfigure: Optional[Path] = None
+    """Checkout that contains cosmopolitan/. Supplies cosmocc when relinking."""
+
+    c_extension: List[Path] = dataclasses.field(default_factory=list)
+    """Static extension directories to relink into the runtime."""
+
+    separate_debug: bool = False
+    """Whether a relink should omit the symbol table and keep ELF companions."""
+
+    packages: List[Path] = dataclasses.field(default_factory=list)
+    """Python packages produced by --c-extension, packed into site-packages."""
+
     def resolved_python_url(self) -> str:
         """URL used when a python.com is downloaded."""
         return (
@@ -150,6 +194,7 @@ class Args:
                 arg = alias.get(arg, arg)
             else:
                 arg = "--add"
+
             prop = arg[2:].replace("-", "_")
 
             if arg in [
@@ -158,6 +203,7 @@ class Args:
                 "--debug",
                 "--dry-run",
                 "--help",
+                "--separate-debug",
                 "--version",
             ]:
                 setattr(args, prop, True)
@@ -167,10 +213,15 @@ class Args:
                     raise ValueError(f"Expected argument for option: {arg}")
                 setattr(args, prop, argv.pop(0))
 
-            elif arg in ["--output", "--python"]:
+            elif arg in ["--output", "--python", "--sdk", "--superconfigure"]:
                 if not argv:
                     raise ValueError(f"Expected argument for option: {arg}")
                 setattr(args, prop, Path(argv.pop(0)))
+
+            elif arg == "--c-extension":
+                if not argv:
+                    raise ValueError(f"Expected argument for option: {arg}")
+                args.c_extension.append(Path(argv.pop(0)))
 
             elif arg in ["--add", "--exclude", "--remove"]:
                 if not argv:

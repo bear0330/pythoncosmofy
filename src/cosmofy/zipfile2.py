@@ -56,25 +56,27 @@ class ZipFile2(ZipFile):
         """Remove a file from the archive. The archive must be open with mode 'a'"""
         if self.mode != "a":
             raise RuntimeError("remove() requires mode 'a'")
+
         if not self.fp:
             raise ValueError("Attempt to write to ZIP archive that was already closed")
+
         if self._writing:
             raise ValueError(
                 "Can't write to ZIP archive while an open writing handle exists."
             )
 
-        # zinfo
         if isinstance(member, ZipInfo):
             return self._remove_member(member)
 
-        # name
         if "*" not in member and "?" not in member:
             return self._remove_member(self.getinfo(member))
 
-        # glob; copy matches first because removal edits filelist
+        # Copy matches first because removal edits filelist.
         matched = [item for item in self.filelist if fnmatch(item.filename, member)]
+
         for item in matched:
             self._remove_member(item)
+
         return self
 
     def _remove_member(self, member: ZipInfo) -> ZipFile2:
@@ -82,45 +84,37 @@ class ZipFile2(ZipFile):
         fp = self.fp
         assert fp
 
-        # sort by header_offset in case central dir has different order
+        # Central directory order can differ from file order.
         entry_offset = 0
         filelist = sorted(self.filelist, key=attrgetter("header_offset"))
         last_index = len(filelist) - 1
+
         for i, info in enumerate(filelist):
-            if info.header_offset < member.header_offset:  # keep going until target
+            if info.header_offset < member.header_offset:
                 continue
 
-            # get the total size of the entry
-            entry_size = None
             if i == last_index:
                 entry_size = self.start_dir - info.header_offset
             else:
                 entry_size = filelist[i + 1].header_offset - info.header_offset
 
-            if member == info:  # set the entry offset
+            if member == info:
                 entry_offset = entry_size
                 continue
-            # move all subsequent entries
 
-            # read the actual entry data
             fp.seek(info.header_offset)
             entry_data = fp.read(entry_size)
 
-            # update the header
             info.header_offset -= entry_offset
-
-            # write the entry to the new position
             fp.seek(info.header_offset)
             fp.write(entry_data)
             fp.flush()
 
-        # update state
         self.start_dir -= entry_offset
         self.filelist.remove(member)
         del self.NameToInfo[member.filename]
         self._didModify = True
 
-        # seek to the start of the central dir
         fp.seek(self.start_dir)
         return self
 
