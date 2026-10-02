@@ -5,27 +5,27 @@ Python APE. It comes from
 [cosmofy 0.1.0](https://github.com/metaist/cosmofy/releases/tag/0.1.0).
 The self-updater from that release is not included.
 
-The base runtime is the latest [`python.com`](https://github.com/bear0330/python-ape/releases/latest/download/python.com)
+Bundle with the released
+[`pythoncosmofy.com`](https://github.com/bear0330/pythoncosmofy/releases/latest/download/pythoncosmofy.com)
+from [v0.3.0](https://github.com/bear0330/pythoncosmofy/releases/tag/v0.3.0).
+That binary clones the latest [`python.com`](https://github.com/bear0330/python-ape/releases/latest/download/python.com)
 published by [python-ape](https://github.com/bear0330/python-ape/releases).
-After bootstrap, `dist/pythoncosmofy.com` bundles apps by itself.
 
-## Bootstrap
-
-With no path, bootstrap downloads that latest `python.com`. A local file is
-used when you pass one. A host `python3` copies the runtime and embeds this
-package. The modules are compiled by that `python.com`, so the host Python
-version does not have to match the APE:
+## Download
 
 ```sh
-./scripts/bootstrap.sh
-./scripts/bootstrap.sh /path/to/python.com
+curl -L -o pythoncosmofy.com \
+  https://github.com/bear0330/pythoncosmofy/releases/latest/download/pythoncosmofy.com
+chmod +x pythoncosmofy.com
 ```
 
 ## Bundle an app
 
+From this repository:
+
 ```sh
-./dist/pythoncosmofy.com examples/hello -o dist/hello.com
-./dist/hello.com 'two words'
+./pythoncosmofy.com examples/hello -o hello.com
+./hello.com 'two words'
 # Hello from embedded Python: two words
 ```
 
@@ -35,9 +35,9 @@ downloaded `python.com` instead of the clone. The default URL is the latest
 python-ape release:
 
 ```sh
-./dist/pythoncosmofy.com \
+./pythoncosmofy.com \
   --python-url https://github.com/bear0330/python-ape/releases/latest/download/python.com \
-  examples/hello -o dist/hello.com
+  examples/hello -o hello.com
 ```
 
 For the hello example the startup configuration is:
@@ -102,14 +102,12 @@ myserver/
   Lib/site-packages/jinja2/
 ```
 
-`dist/pythoncosmofy.com` in this checkout was built before the shared
-script lookup. Use the source module. Paths passed to cosmofy are relative
-to the working directory. `--c-extension` accepts a path outside that
-directory.
+Paths passed to cosmofy are relative to the working directory.
+`--c-extension` accepts a path outside that directory.
 
 ```sh
 cd /path/to/myserver
-PYTHONPATH=/path/to/pythoncosmofy/src python3 -m cosmofy \
+/path/to/pythoncosmofy.com \
   --sdk /path/to/python-ape/sdk \
   --superconfigure /path/to/superconfigure \
   --c-extension /path/to/python-ape/extensions/markupsafe \
@@ -136,6 +134,19 @@ cosmoaddr2line myserver.aarch64.elf <address>
 
 The flag is used together with `--c-extension`. That relink is what still
 has the per-architecture ELFs.
+
+## Build from source
+
+`scripts/bootstrap.sh` writes `dist/pythoncosmofy.com` from this checkout.
+With no path, bootstrap downloads the latest `python.com`. A local file is
+used when you pass one. A host `python3` copies the runtime and embeds this
+package. The modules are compiled by that `python.com`, so the host Python
+version does not have to match the APE:
+
+```sh
+./scripts/bootstrap.sh
+./scripts/bootstrap.sh /path/to/python.com
+```
 
 ## License
 
